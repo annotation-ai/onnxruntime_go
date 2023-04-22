@@ -339,7 +339,7 @@ func NewSession[T TensorData](onnxFilePath string, inputNames,
 		return nil, fmt.Errorf("Error reading %s: %w", onnxFilePath, e)
 	}
 
-	toReturn, e := NewSessionWithONNXData[T](fileContent, inputNames,
+	toReturn, e := NewSessionWithONNXData(fileContent, inputNames,
 		outputNames, inputs, outputs)
 	if e != nil {
 		return nil, fmt.Errorf("Error creating session from %s: %w",

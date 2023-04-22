@@ -23,12 +23,12 @@ func InitializeRuntime(t *testing.T) {
 		return
 	}
 	if runtime.GOOS == "windows" {
-		SetSharedLibraryPath("test_data/onnxruntime.dll")
+		SetSharedLibraryPath("example/onnxruntime.dll")
 	} else {
 		if runtime.GOARCH == "arm64" {
-			SetSharedLibraryPath("test_data/onnxruntime_arm64.so")
+			SetSharedLibraryPath("example/onnxruntime_arm64.so")
 		} else {
-			SetSharedLibraryPath("test_data/onnxruntime.so")
+			SetSharedLibraryPath("example/onnxruntime.so")
 		}
 	}
 	e := InitializeEnvironment()
@@ -180,7 +180,7 @@ func TestExampleNetwork(t *testing.T) {
 	}()
 
 	// Create input and output tensors
-	inputs := parseInputsJSON("test_data/example_network_results.json", t)
+	inputs := parseInputsJSON("example/example_network_results.json", t)
 	inputTensor, e := NewTensor(Shape(inputs.InputShape),
 		inputs.FlattenedInput)
 	if e != nil {
@@ -196,7 +196,7 @@ func TestExampleNetwork(t *testing.T) {
 	defer outputTensor.Destroy()
 
 	// Set up and run the session.
-	session, e := NewSession[float32]("test_data/example_network.onnx",
+	session, e := NewSession("example/example_network.onnx",
 		[]string{"1x4 Input Vector"}, []string{"1x2 Output Vector"},
 		[]*Tensor[float32]{inputTensor}, []*Tensor[float32]{outputTensor})
 	if e != nil {
