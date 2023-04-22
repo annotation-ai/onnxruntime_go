@@ -332,20 +332,53 @@ func NewSessionWithONNXData[T TensorData](onnxData []byte, inputNames,
 // can just update or access the input/output tensor data after calling Run().
 // The input and output tensors MUST outlive this session, and calling
 // session.Destroy() will not destroy the input or output tensors.
-func NewSession[T TensorData](onnxFilePath string, inputNames,
-	outputNames []string, inputs, outputs []*Tensor[T]) (*Session[T], error) {
+func NewSession[T TensorData](
+	onnxFilePath string,
+	inputNames, outputNames []string,
+) (*Session[T], error) {
+	if !IsInitialized() {
+		return nil, NotInitializedError
+	}
+	if len(inputNames) == 0 {
+		return nil, fmt.Errorf("No input names were provided")
+	}
+	if len(outputNames) == 0 {
+		return nil, fmt.Errorf("No output names were provided")
+	}
+
 	fileContent, e := os.ReadFile(onnxFilePath)
 	if e != nil {
 		return nil, fmt.Errorf("Error reading %s: %w", onnxFilePath, e)
 	}
 
-	toReturn, e := NewSessionWithONNXData(fileContent, inputNames,
-		outputNames, inputs, outputs)
-	if e != nil {
-		return nil, fmt.Errorf("Error creating session from %s: %w",
-			onnxFilePath, e)
+	var ortSession *C.OrtSession
+	status := C.CreateSession(unsafe.Pointer(&(fileContent[0])),
+		C.size_t(len(fileContent)), ortEnv, &ortSession)
+	if status != nil {
+		return nil, fmt.Errorf("Error creating session: %w",
+			statusToError(status))
 	}
-	return toReturn, nil
+
+	// Collect the inputs and outputs, along with their names, into a format
+	// more convenient for passing to the Run() function in the C API.
+	cInputNames := make([]*C.char, len(inputNames))
+	cOutputNames := make([]*C.char, len(outputNames))
+	for i, v := range inputNames {
+		cInputNames[i] = C.CString(v)
+	}
+	for i, v := range outputNames {
+		cOutputNames[i] = C.CString(v)
+	}
+	inputOrtTensors := make([]*C.OrtValue, len(inputNames))
+	outputOrtTensors := make([]*C.OrtValue, len(outputNames))
+
+	return &Session[T]{
+		ortSession:  ortSession,
+		inputNames:  cInputNames,
+		outputNames: cOutputNames,
+		inputs:      inputOrtTensors,
+		outputs:     outputOrtTensors,
+	}, nil
 }
 
 func (s *Session[_]) Destroy() error {
@@ -367,7 +400,23 @@ func (s *Session[_]) Destroy() error {
 }
 
 // Runs the session, updating the contents of the output tensors on success.
-func (s *Session[T]) Run() error {
+func (s *Session[T]) Run(inputs, outputs []*Tensor[T]) error {
+	if len(inputs) != len(s.inputNames) {
+		return fmt.Errorf("Got %d input tensors, but %d input names",
+			len(inputs), len(s.inputNames))
+	}
+	if len(outputs) != len(s.outputNames) {
+		return fmt.Errorf("Got %d output tensors, but %d output names",
+			len(outputs), len(s.outputNames))
+	}
+
+	for i, v := range inputs {
+		s.inputs[i] = v.ortValue
+	}
+	for i, v := range outputs {
+		s.outputs[i] = v.ortValue
+	}
+
 	status := C.RunOrtSession(s.ortSession, &s.inputs[0], &s.inputNames[0],
 		C.int(len(s.inputs)), &s.outputs[0], &s.outputNames[0],
 		C.int(len(s.outputs)))

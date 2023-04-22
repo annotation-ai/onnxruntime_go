@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	ort "github.com/annotation-ai/onnxruntime_go"
 )
@@ -10,7 +11,9 @@ import (
 func main() {
 	// This line may be optional, by default the library will try to load
 	// "onnxruntime.dll" on Windows, and "onnxruntime.so" on any other system.
-	ort.SetSharedLibraryPath("/opt/homebrew/Cellar/onnxruntime/1.14.1/lib/libonnxruntime.dylib")
+	// You can download the library from:
+	//     https://github.com/microsoft/onnxruntime/releases
+	ort.SetSharedLibraryPath("libonnxruntime_1.14.1_osx_arm64.dylib")
 
 	err := ort.InitializeEnvironment()
 	if err != nil {
@@ -41,9 +44,11 @@ func main() {
 	}
 	defer outputTensor.Destroy()
 
-	session, err := ort.NewSession("example_network.onnx",
-		[]string{"input"}, []string{"output"},
-		[]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
+	session, err := ort.NewSession[float32](
+		"example_network.onnx",
+		[]string{"input"},
+		[]string{"output"},
+	)
 	if err != nil {
 		log.Println(err)
 	}
@@ -53,11 +58,46 @@ func main() {
 	// input tensors and modifying the contents of the output tensors. Simply
 	// modify the input tensor's data (available via inputTensor.GetData())
 	// before calling Run().
-	err = session.Run()
+	start := time.Now()
+	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
 	if err != nil {
 		log.Println(err)
 	}
-
+	elapsed := time.Since(start)
 	outputData := outputTensor.GetData()
-	fmt.Println(outputData)
+	fmt.Println(outputData, elapsed)
+
+	// Predict once again
+	inputData = []float32{0.1, 0.2, 0.3, 0.4}
+	inputTensor, err = ort.NewTensor(inputShape, inputData)
+	if err != nil {
+		log.Println(err)
+	}
+	defer inputTensor.Destroy()
+
+	start = time.Now()
+	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
+	if err != nil {
+		log.Println(err)
+	}
+	elapsed = time.Since(start)
+	outputData = outputTensor.GetData()
+	fmt.Println(outputData, elapsed)
+
+	// Predict once again
+	inputData = []float32{0.4, 0.3, 0.2, 0.1}
+	inputTensor, err = ort.NewTensor(inputShape, inputData)
+	if err != nil {
+		log.Println(err)
+	}
+	defer inputTensor.Destroy()
+
+	start = time.Now()
+	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
+	if err != nil {
+		log.Println(err)
+	}
+	elapsed = time.Since(start)
+	outputData = outputTensor.GetData()
+	fmt.Println(outputData, elapsed)
 }

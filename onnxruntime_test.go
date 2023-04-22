@@ -196,15 +196,17 @@ func TestExampleNetwork(t *testing.T) {
 	defer outputTensor.Destroy()
 
 	// Set up and run the session.
-	session, e := NewSession("example/example_network.onnx",
+	session, e := NewSession[float32]("example/example_network.onnx",
 		[]string{"1x4 Input Vector"}, []string{"1x2 Output Vector"},
-		[]*Tensor[float32]{inputTensor}, []*Tensor[float32]{outputTensor})
+	)
 	if e != nil {
 		t.Logf("Failed creating session: %s\n", e)
 		t.FailNow()
 	}
 	defer session.Destroy()
-	e = session.Run()
+	e = session.Run(
+		[]*Tensor[float32]{inputTensor}, []*Tensor[float32]{outputTensor},
+	)
 	if e != nil {
 		t.Logf("Failed to run the session: %s\n", e)
 		t.FailNow()
