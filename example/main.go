@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// This line may be optional, by default the library will try to load
-	// "onnxruntime.dll" on Windows, and "onnxruntime.so" on any other system.
+	// "onnxruntime.dll" on Windows, "onnxruntim.dylib" on OSX, and "onnxruntime.so" on any other system.
 	// You can download the library from:
 	//     https://github.com/microsoft/onnxruntime/releases
 	ort.SetSharedLibraryPath("libonnxruntime_1.14.1_osx_arm64.dylib")
@@ -21,7 +21,7 @@ func main() {
 	}
 	defer ort.DestroyEnvironment()
 
-	// Creates a session.
+	// Creates a new session.
 	session, err := ort.NewSession[float32](
 		"example_network.onnx",
 		[]string{"input"},
@@ -64,39 +64,5 @@ func main() {
 	}
 	elapsed := time.Since(start)
 	outputData := outputTensor.GetData()
-	fmt.Println(outputData, elapsed)
-
-	// Predict again.
-	inputData = []float32{0.1, 0.2, 0.3, 0.4}
-	inputTensor, err = ort.NewTensor(inputShape, inputData)
-	if err != nil {
-		log.Println(err)
-	}
-	defer inputTensor.Destroy()
-
-	start = time.Now()
-	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
-	if err != nil {
-		log.Println(err)
-	}
-	elapsed = time.Since(start)
-	outputData = outputTensor.GetData()
-	fmt.Println(outputData, elapsed)
-
-	// Predict once again.
-	inputData = []float32{0.4, 0.3, 0.2, 0.1}
-	inputTensor, err = ort.NewTensor(inputShape, inputData)
-	if err != nil {
-		log.Println(err)
-	}
-	defer inputTensor.Destroy()
-
-	start = time.Now()
-	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
-	if err != nil {
-		log.Println(err)
-	}
-	elapsed = time.Since(start)
-	outputData = outputTensor.GetData()
 	fmt.Println(outputData, elapsed)
 }
