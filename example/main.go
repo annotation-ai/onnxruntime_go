@@ -21,8 +21,19 @@ func main() {
 	}
 	defer ort.DestroyEnvironment()
 
+	// Creates a session.
+	session, err := ort.NewSession[float32](
+		"example_network.onnx",
+		[]string{"input"},
+		[]string{"output"},
+	)
+	if err != nil {
+		log.Println(err)
+	}
+	defer session.Destroy()
+
 	// To make it easier to work with the C API, this library requires the user
-	// to create all input and output tensors prior to creating the session.
+	// to create all input and output tensors prior to running the session.
 	inputData := []float32{
 		0.6160029172897339,
 		0.104542076587677,
@@ -36,7 +47,7 @@ func main() {
 	}
 	defer inputTensor.Destroy()
 
-	// This hypothetical network maps a 2x5 input -> 2x3x4 output.
+	// This hypothetical network maps a 1x1x4 input -> 1x1x2 output.
 	outputShape := ort.NewShape(1, 1, 2)
 	outputTensor, err := ort.NewEmptyTensor[float32](outputShape)
 	if err != nil {
@@ -44,20 +55,8 @@ func main() {
 	}
 	defer outputTensor.Destroy()
 
-	session, err := ort.NewSession[float32](
-		"example_network.onnx",
-		[]string{"input"},
-		[]string{"output"},
-	)
-	if err != nil {
-		log.Println(err)
-	}
-	defer session.Destroy()
-
 	// Calling Run() will run the network, reading the current contents of the
-	// input tensors and modifying the contents of the output tensors. Simply
-	// modify the input tensor's data (available via inputTensor.GetData())
-	// before calling Run().
+	// input tensors and modifying the contents of the output tensors.
 	start := time.Now()
 	err = session.Run([]*ort.Tensor[float32]{inputTensor}, []*ort.Tensor[float32]{outputTensor})
 	if err != nil {
@@ -67,7 +66,7 @@ func main() {
 	outputData := outputTensor.GetData()
 	fmt.Println(outputData, elapsed)
 
-	// Predict once again
+	// Predict again.
 	inputData = []float32{0.1, 0.2, 0.3, 0.4}
 	inputTensor, err = ort.NewTensor(inputShape, inputData)
 	if err != nil {
@@ -84,7 +83,7 @@ func main() {
 	outputData = outputTensor.GetData()
 	fmt.Println(outputData, elapsed)
 
-	// Predict once again
+	// Predict once again.
 	inputData = []float32{0.4, 0.3, 0.2, 0.1}
 	inputTensor, err = ort.NewTensor(inputShape, inputData)
 	if err != nil {
